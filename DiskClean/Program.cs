@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
 
 class Program
 {
@@ -26,12 +28,15 @@ class Program
             }
 
             DriveInfo[] allDrives = DriveInfo.GetDrives();
+            long totalEspacoLiberado = 0;
 
             foreach (DriveInfo d in allDrives)
             {
                 if (d.IsReady)
                 {
                     Console.WriteLine($"Drive {d.Name} está pronto. Tipo: {d.DriveType}, Formato: {d.DriveFormat}, Espaço livre: {d.TotalFreeSpace}");
+
+                    long espacoLivreAntes = d.TotalFreeSpace;
 
                     string localAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                     string tempPath = Path.GetTempPath();
@@ -60,105 +65,109 @@ class Program
                     {
                         Console.WriteLine($"Ocorreu um erro inesperado ao limpar o drive {d.Name}: {ex.Message}");
                     }
+
+                    long espacoLivreDepois = d.TotalFreeSpace;
+                    long espacoLiberado = espacoLivreDepois - espacoLivreAntes;
+                    totalEspacoLiberado += espacoLiberado;
+
+                    Console.WriteLine($"Espaço liberado no drive {d.Name}: {espacoLiberado} bytes");
                 }
             }
+
+            double totalEspacoLiberadoGB = totalEspacoLiberado / (1024.0 * 1024.0 * 1024.0);
+            Console.WriteLine($"Total de espaço liberado em todos os drives: {totalEspacoLiberadoGB:F2} GB");
 
             Console.WriteLine("Digite enter para fechar...");
             Console.ReadLine();
-        
-
-    static Process ExecutarCMD(string comando)
-        {
-            try
-            {
-                ProcessStartInfo psi = new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c " + comando,
-                    Verb = "runas"
-                };
-                return Process.Start(psi);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ocorreu um erro ao executar o comando no CMD: {ex.Message}");
-                return null;
-            }
         }
-
-        static void ExcluirArquivosEDiretorios(string folderPath)
-        {
-            if (Directory.Exists(folderPath))
-            {
-                string[] files = Directory.GetFiles(folderPath);
-                foreach (string file in files)
-                {
-                    try
-                    {
-                        File.Delete(file);
-                        Console.WriteLine($"Arquivo excluído: {file}");
-                    }
-                    catch (IOException ex) when (
-                        ex.Message.Contains("O processo não pode acessar o arquivo")
-                        || ex.Message.Contains("está sendo usado por outro processo")
-                    )
-                    {
-                        Console.WriteLine($"Ignorando erro ao excluir arquivo '{file}': {ex.Message}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Erro ao excluir o arquivo '{file}': {ex.Message}");
-                    }
-                }
-
-                string[] directories = Directory.GetDirectories(folderPath);
-                foreach (string directory in directories)
-                {
-                    try
-                    {
-                        Directory.Delete(directory, true);
-                        Console.WriteLine($"Diretório excluído: {directory}");
-                    }
-                    catch (IOException ex) when (
-                        ex.Message.Contains("O processo não pode acessar o arquivo")
-                        || ex.Message.Contains("está sendo usado por outro processo")
-                    )
-                    {
-                        Console.WriteLine($"Ignorando erro ao excluir diretório '{directory}': {ex.Message}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Erro ao excluir o diretório '{directory}': {ex.Message}");
-                    }
-                }
-            }
-        }
-
-        static void FecharProcesso(string nomeProcesso)
-        {
-            var processos = Process.GetProcessesByName(nomeProcesso);
-            foreach (var processo in processos)
-            {
-                try
-                {
-                    processo.Kill();
-                    processo.WaitForExit();
-                    Console.WriteLine($"Processo {nomeProcesso} encerrado.");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Erro ao tentar encerrar o processo {nomeProcesso}: {ex.Message}");
-                }
-            }
-        }
-    
-}
         catch (Exception ex)
         {
             Console.WriteLine($"Erro: {ex.Message}");
-        } 
+        }
+    }
+
+    static Process ExecutarCMD(string comando)
+    {
+        try
+        {
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c " + comando,
+                Verb = "runas"
+            };
+            return Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ocorreu um erro ao executar o comando no CMD: {ex.Message}");
+            return null;
+        }
+    }
+
+    static void ExcluirArquivosEDiretorios(string folderPath)
+    {
+        if (Directory.Exists(folderPath))
+        {
+            string[] files = Directory.GetFiles(folderPath);
+            foreach (string file in files)
+            {
+                try
+                {
+                    File.Delete(file);
+                    Console.WriteLine($"Arquivo excluído: {file}");
+                }
+                catch (IOException ex) when (
+                    ex.Message.Contains("O processo não pode acessar o arquivo")
+                    || ex.Message.Contains("está sendo usado por outro processo")
+                )
+                {
+                    Console.WriteLine($"Ignorando erro ao excluir arquivo '{file}': {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro ao excluir o arquivo '{file}': {ex.Message}");
+                }
             }
+
+            string[] directories = Directory.GetDirectories(folderPath);
+            foreach (string directory in directories)
+            {
+                try
+                {
+                    Directory.Delete(directory, true);
+                    Console.WriteLine($"Diretório excluído: {directory}");
+                }
+                catch (IOException ex) when (
+                    ex.Message.Contains("O processo não pode acessar o arquivo")
+                    || ex.Message.Contains("está sendo usado por outro processo")
+                )
+                {
+                    Console.WriteLine($"Ignorando erro ao excluir diretório '{directory}': {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro ao excluir o diretório '{directory}': {ex.Message}");
+                }
+            }
+        }
+    }
+
+    static void FecharProcesso(string nomeProcesso)
+    {
+        var processos = Process.GetProcessesByName(nomeProcesso);
+        foreach (var processo in processos)
+        {
+            try
+            {
+                processo.Kill();
+                processo.WaitForExit();
+                Console.WriteLine($"Processo {nomeProcesso} encerrado.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao tentar encerrar o processo {nomeProcesso}: {ex.Message}");
+            }
+        }
+    }
 }
-
-
-        
